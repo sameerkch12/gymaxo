@@ -15,7 +15,8 @@ export async function sendOtpEmail(email: string, code: string) {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-  });
+    family: 4,
+  } as any);
 
   await transporter.sendMail({
     from: env.SMTP_FROM || env.SMTP_USER,
