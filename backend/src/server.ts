@@ -1,3 +1,4 @@
+import https from "https";
 import { env } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
@@ -9,6 +10,14 @@ async function main() {
   const server = app.listen(env.PORT, () => {
     console.log(`Gymaxo API running on http://localhost:${env.PORT}/api`);
   });
+
+  setInterval(() => {
+    https.get("https://gymaxo.onrender.com", (res) => {
+      console.log(`Server hit with status code: ${res.statusCode}`);
+    }).on("error", (e) => {
+      console.error(`Got error: ${e.message}`);
+    });
+  }, 3 * 60 * 1000);
 
   const shutdown = async () => {
     server.close(async () => {
