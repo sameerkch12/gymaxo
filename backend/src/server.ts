@@ -12,7 +12,7 @@ async function main() {
   });
 
   setInterval(() => {
-    https.get("https://gymaxo.onrender.com", (res) => {
+    https.get("https://gymaxo.onrender.com/api/health", (res) => {
       console.log(`Server hit with status code: ${res.statusCode}`);
     }).on("error", (e) => {
       console.error(`Got error: ${e.message}`);
