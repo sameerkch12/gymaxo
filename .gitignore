@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+web-build/
+**/web-build/
+
+# Expo / React Native
+.expo/
+**/.expo/
+expo-env.d.ts
+**/expo-env.d.ts
+.metro-health-check*
+**/.metro-health-check*
+ios/
+android/
+**/ios/
+**/android/
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+
+# TypeScript
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Native signing / secrets
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Misc generated
+.cache/
+**/.cache/
+coverage/
+**/coverage/
