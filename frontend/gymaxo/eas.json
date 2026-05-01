@@ -9,13 +9,15 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://gymaxo.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://gymaxo.onrender.com/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://gymaxo.onrender.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://gymaxo.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://gymaxo.onrender.com/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://gymaxo.onrender.com"
       }
     }
   }
