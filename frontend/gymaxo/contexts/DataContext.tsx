@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { io, Socket } from "socket.io-client";
 
 import {
   apiRequest,
@@ -166,6 +167,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [payments, setPayments] = useState<PaymentRequest[]>([]);
   const [ownerPaymentUpiId, setOwnerPaymentUpiId] = useState("");
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   const reset = useCallback(() => {
     setGyms([]);
@@ -248,6 +250,93 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Socket.IO connection
+  useEffect(() => {
+    if (!user) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+      return;
+    }
+
+    const newSocket = io(process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000", {
+      transports: ["websocket"],
+    });
+
+    newSocket.on("connect", () => {
+      console.log("Connected to server");
+      newSocket.emit("join", { userId: user.id, role: user.role });
+    });
+
+    // Listen for real-time updates
+    if (user.role === "owner") {
+      newSocket.on("payment:submitted", (data) => {
+        console.log("Payment submitted:", data);
+        setPayments((current) => [normalizePayment(data.payment), ...current]);
+      });
+
+      newSocket.on("customer:added", (data) => {
+        console.log("Customer added:", data);
+        setCustomers((current) => [normalizeCustomer(data.customer), ...current]);
+      });
+
+      newSocket.on("plan:created", (data) => {
+        console.log("Plan created:", data);
+        setPlans((current) => [normalizePlan(data.plan), ...current]);
+      });
+
+      newSocket.on("plan:deleted", (data) => {
+        console.log("Plan deleted:", data);
+        setPlans((current) => current.filter((p) => p.id !== data.planId));
+      });
+
+      newSocket.on("payment-settings:updated", (data) => {
+        console.log("Payment settings updated:", data);
+        setOwnerPaymentUpiId(data.upiId);
+      });
+
+      newSocket.on("subscription:renewed", (data) => {
+        console.log("Subscription renewed:", data);
+        // Could update subscription status if stored
+      });
+
+      newSocket.on("subscription:status_changed", (data) => {
+        console.log("Subscription status changed:", data);
+        // Could update subscription status
+      });
+    } else if (user.role === "customer") {
+      newSocket.on("payment:status_changed", (data) => {
+        console.log("Payment status changed:", data);
+        setCustomers((current) =>
+          current.map((c) =>
+            c.id === data.customer.id ? normalizeCustomer(data.customer) : c
+          )
+        );
+      });
+
+      newSocket.on("plan:updated", (data) => {
+        console.log("Plan updated:", data);
+        if (data.action === "created") {
+          setPlans((current) => [normalizePlan(data.plan), ...current]);
+        } else if (data.action === "deleted") {
+          setPlans((current) => current.filter((p) => p.id !== data.planId));
+        }
+      });
+
+      newSocket.on("notification:created", (data) => {
+        console.log("Notification received:", data);
+        // Could show toast or update notifications list
+      });
+    }
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [user]);
 
   const addGym = useCallback<DataContextValue["addGym"]>(async (input) => {
     const data = await apiRequest<{ gym: unknown; branch: unknown }>("/owner/gyms", {
