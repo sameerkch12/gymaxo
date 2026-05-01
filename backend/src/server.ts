@@ -4,6 +4,8 @@ import { env } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
 import { getEventService, initEventService } from "./services/event.service.js";
+import { CustomerModel } from "./models/customer.model.js";
+import { verifyAccessToken } from "./utils/tokens.js";
 
 async function main() {
   await connectDatabase();
@@ -23,14 +25,45 @@ async function main() {
   // Initialize event service
   initEventService(io);
 
-  // Socket.IO connection handling
-  io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
+  io.use((socket, next) => {
+    const authToken = socket.handshake.auth?.token;
+    const headerToken = socket.handshake.headers.authorization;
+    const token =
+      typeof authToken === "string"
+        ? authToken
+        : typeof headerToken === "string" && headerToken.startsWith("Bearer ")
+          ? headerToken.slice(7)
+          : null;
 
-    socket.on("join", (data: { userId: string; role: string }) => {
+    if (!token) return next(new Error("Missing socket token"));
+
+    try {
+      socket.data.auth = verifyAccessToken(token);
+      return next();
+    } catch {
+      return next(new Error("Invalid socket token"));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    const auth = socket.data.auth as ReturnType<typeof verifyAccessToken>;
+
+    const joinRooms = async () => {
       const eventService = getEventService();
-      eventService.joinUser(socket, data.userId, data.role);
-      console.log(`User ${data.userId} joined as ${data.role}`);
+      const customerIds =
+        auth.role === "customer"
+          ? (await CustomerModel.find({ userId: auth.sub }).select("_id")).map((customer) =>
+              String(customer._id),
+            )
+          : [];
+
+      eventService.joinUser(socket, auth.sub, auth.role, customerIds);
+      console.log(`Socket ${socket.id} joined as ${auth.role}:${auth.sub}`);
+    };
+
+    void joinRooms().catch((error) => {
+      console.error("Socket room join failed", error);
+      socket.disconnect(true);
     });
 
     socket.on("disconnect", () => {

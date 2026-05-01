@@ -10,6 +10,7 @@ import { Badge, Card, DataSkeleton, Header, StatCard } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useTodayISO } from "@/hooks/useTodayISO";
 import { computeBanner } from "@/lib/reminders";
 
 export default function OwnerDashboard() {
@@ -19,8 +20,11 @@ export default function OwnerDashboard() {
   const { loading, customers, branches, gyms, attendance, payments, plans } = useData();
   const banner = computeBanner({ user });
 
-  const today = new Date().toISOString().split("T")[0]!;
-  const todayAttendance = attendance.filter((a) => a.date === today);
+  const today = useTodayISO();
+  const todayAttendance = useMemo(
+    () => attendance.filter((a) => a.date === today),
+    [attendance, today],
+  );
   const activeMembers = customers.filter((c) => c.active).length;
   const expiringSoon = customers.filter((cm) => {
     const days =
@@ -31,11 +35,11 @@ export default function OwnerDashboard() {
 
   const recent = useMemo(
     () =>
-      attendance
+      todayAttendance
         .slice()
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 5),
-    [attendance],
+    [todayAttendance],
   );
 
   return (

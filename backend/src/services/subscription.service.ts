@@ -1,6 +1,7 @@
 import { SubscriptionModel } from "../models/subscription.model.js";
 import { addDays, startOfToday } from "../utils/dates.js";
 import { OWNER_MONTHLY_FEE } from "../constants/domain.js";
+import { env } from "../config/env.js";
 import { getEventService } from "./event.service.js";
 import { notificationService } from "./notification.service.js";
 
@@ -8,7 +9,7 @@ export async function createOwnerSubscription(ownerId: string, daysUntilDue = 30
   return SubscriptionModel.create({
     ownerId,
     active: true,
-    dueDate: addDays(startOfToday(), daysUntilDue),
+    dueDate: addDays(startOfToday(env.APP_TIME_ZONE), daysUntilDue),
     monthlyFee: OWNER_MONTHLY_FEE,
     lastPaidAt: new Date(),
   });
@@ -20,7 +21,7 @@ export async function getOwnerSubscription(ownerId: string) {
 
 export async function renewOwnerSubscription(ownerId: string) {
   const existing = await SubscriptionModel.findOne({ ownerId });
-  const today = startOfToday();
+  const today = startOfToday(env.APP_TIME_ZONE);
   const base = existing && existing.dueDate > today ? existing.dueDate : today;
 
   const subscription = await SubscriptionModel.findOneAndUpdate(
@@ -52,7 +53,7 @@ export async function renewOwnerSubscription(ownerId: string) {
 
 export async function setOwnerSubscriptionStatus(ownerId: string, active: boolean, days = 30) {
   const existing = await SubscriptionModel.findOne({ ownerId });
-  const today = startOfToday();
+  const today = startOfToday(env.APP_TIME_ZONE);
   const base = existing && existing.dueDate > today ? existing.dueDate : today;
 
   const subscription = await SubscriptionModel.findOneAndUpdate(
@@ -91,5 +92,5 @@ export async function setOwnerSubscriptionStatus(ownerId: string, active: boolea
 
 export function isSubscriptionExpired(subscription?: { active?: boolean; dueDate: Date } | null) {
   if (!subscription || !subscription.active) return true;
-  return subscription.dueDate < startOfToday();
+  return subscription.dueDate < startOfToday(env.APP_TIME_ZONE);
 }

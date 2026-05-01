@@ -14,10 +14,10 @@ notificationRoutes.get(
     const notifications = await notificationService.getNotifications(
       req.auth!.userId,
       Number(page),
-      Number(limit)
+      Number(limit),
     );
-    res.json(notifications);
-  })
+    res.json({ ok: true, data: { notifications } });
+  }),
 );
 
 notificationRoutes.patch(
@@ -25,10 +25,10 @@ notificationRoutes.patch(
   asyncHandler(async (req, res) => {
     const success = await notificationService.markAsRead(req.params.id, req.auth!.userId);
     if (!success) {
-      return res.status(404).json({ message: "Notification not found" });
+      return res.status(404).json({ ok: false, message: "Notification not found" });
     }
-    res.json({ message: "Notification marked as read" });
-  })
+    res.json({ ok: true, data: { read: true } });
+  }),
 );
 
 notificationRoutes.delete(
@@ -36,8 +36,8 @@ notificationRoutes.delete(
   asyncHandler(async (req, res) => {
     const success = await notificationService.deleteNotification(req.params.id, req.auth!.userId);
     if (!success) {
-      return res.status(404).json({ message: "Notification not found" });
+      return res.status(404).json({ ok: false, message: "Notification not found" });
     }
-    res.json({ message: "Notification deleted" });
-  })
+    res.json({ ok: true, data: { deleted: true } });
+  }),
 );

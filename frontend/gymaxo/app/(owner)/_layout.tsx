@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import React, { useEffect } from "react";
 import { Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -11,8 +12,10 @@ import { isSubscriptionExpired } from "@/lib/subscription";
 
 export default function OwnerLayout() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
   const { user, loading } = useAuth();
   const { customers } = useData();
+  const bottomInset = Platform.OS === "web" ? 0 : Math.max(insets.bottom, 18);
 
   useEffect(() => {
     if (!user || user.role !== "owner") return;
@@ -37,13 +40,14 @@ export default function OwnerLayout() {
           backgroundColor: c.card,
           borderTopColor: c.border,
           borderTopWidth: 1,
-          ...(Platform.OS === "web" ? { height: 84 } : { height: 86 }),
+          height: Platform.OS === "web" ? 84 : 64 + bottomInset,
           paddingTop: 8,
+          paddingBottom: Platform.OS === "web" ? 8 : bottomInset,
         },
         tabBarLabelStyle: {
           fontFamily: "Inter_600SemiBold",
           fontSize: 11,
-          marginBottom: 6,
+          marginBottom: 0,
         },
         tabBarBackground: () => (
           <View

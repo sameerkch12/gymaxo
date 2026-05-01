@@ -143,6 +143,27 @@ export async function updatePaymentSettings(ownerId: string, input: { upiId: str
     upiId: owner.paymentUpiId,
   });
 
+  const linkedCustomers = await CustomerModel.find({
+    ownerId,
+    userId: { $exists: true, $ne: null },
+  }).select("_id userId name");
+
+  await Promise.all(
+    linkedCustomers.map(async (customer) => {
+      const payload = {
+        ownerId,
+        customerId: String(customer._id),
+        upiId: owner.paymentUpiId ?? "",
+      };
+      eventService.emitToCustomer(String(customer._id), "payment-settings:updated", payload);
+      await notificationService.createNotification(
+        String(customer.userId),
+        "Payment UPI Updated",
+        "Your gym owner updated the payment UPI ID.",
+      );
+    }),
+  );
+
   return { upiId: owner.paymentUpiId ?? "" };
 }
 

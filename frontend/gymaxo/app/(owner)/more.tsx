@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import { useTodayISO } from "@/hooks/useTodayISO";
 import {
   daysUntilDue,
   isSubscriptionExpired,
@@ -44,22 +45,26 @@ export default function MoreScreen() {
   const [upiId, setUpiId] = useState(ownerPaymentUpiId);
   const [savingUpi, setSavingUpi] = useState(false);
   const [upiMessage, setUpiMessage] = useState<string | null>(null);
+  const [editingUpi, setEditingUpi] = useState(!ownerPaymentUpiId);
+  const today = useTodayISO();
 
   useEffect(() => {
     setUpiId(ownerPaymentUpiId);
+    setEditingUpi(!ownerPaymentUpiId);
   }, [ownerPaymentUpiId]);
+
+  const upiIsSet = Boolean(ownerPaymentUpiId.trim());
 
   const branchStats = useMemo(
     () =>
       branches.map((b) => {
         const members = customers.filter((c) => c.branchId === b.id);
-        const today = new Date().toISOString().split("T")[0]!;
         const checkins = attendance.filter(
           (a) => a.branchId === b.id && a.date === today,
         ).length;
         return { branch: b, members: members.length, checkins };
       }),
-    [branches, customers, attendance],
+    [branches, customers, attendance, today],
   );
 
   const planStats = useMemo(
@@ -71,11 +76,13 @@ export default function MoreScreen() {
     [plans, customers],
   );
 
-  const today = new Date().toISOString().split("T")[0]!;
   const last30 = Array.from({ length: 30 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().split("T")[0]!;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   });
   const expectedCheckins = customers.filter((c) => c.active).length * 30 || 1;
   const actualCheckins = attendance.filter((a) =>
@@ -119,6 +126,7 @@ export default function MoreScreen() {
     try {
       const saved = await updateOwnerPaymentUpi(upiId);
       setUpiId(saved);
+      setEditingUpi(false);
       setUpiMessage("UPI saved. Customers will see this on payment screen.");
     } catch (err) {
       setUpiMessage(err instanceof Error ? err.message : "UPI save failed");
@@ -542,9 +550,10 @@ export default function MoreScreen() {
                 <Input
                   label="Owner UPI ID"
                   value={upiId}
-                  onChangeText={setUpiId}
+                  onChangeText={editingUpi ? setUpiId : undefined}
                   autoCapitalize="none"
                   placeholder="yourname@upi"
+                  editable={editingUpi}
                 />
                 <Text
                   style={{
@@ -568,9 +577,16 @@ export default function MoreScreen() {
                   </Text>
                 ) : null}
                 <Button
-                  title="Save UPI"
-                  icon="save"
-                  onPress={handleSaveUpi}
+                  title={upiIsSet && !editingUpi ? "Edit UPI" : "Save UPI"}
+                  icon={upiIsSet && !editingUpi ? "edit-2" : "save"}
+                  onPress={() => {
+                    if (upiIsSet && !editingUpi) {
+                      setUpiMessage(null);
+                      setEditingUpi(true);
+                      return;
+                    }
+                    void handleSaveUpi();
+                  }}
                   loading={savingUpi}
                   fullWidth
                 />

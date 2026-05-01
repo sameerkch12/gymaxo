@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -12,8 +13,10 @@ import { Subscription } from "@/lib/types";
 
 export default function CustomerLayout() {
   const c = useColors();
+  const insets = useSafeAreaInsets();
   const { user, loading, getOwnerSubscription } = useAuth();
   const { customers } = useData();
+  const bottomInset = Platform.OS === "web" ? 0 : Math.max(insets.bottom, 18);
   const [ownerSub, setOwnerSub] = useState<Subscription | null | undefined>(
     undefined,
   );
@@ -64,13 +67,14 @@ export default function CustomerLayout() {
           backgroundColor: c.card,
           borderTopColor: c.border,
           borderTopWidth: 1,
-          ...(Platform.OS === "web" ? { height: 84 } : { height: 86 }),
+          height: Platform.OS === "web" ? 84 : 64 + bottomInset,
           paddingTop: 8,
+          paddingBottom: Platform.OS === "web" ? 8 : bottomInset,
         },
         tabBarLabelStyle: {
           fontFamily: "Inter_600SemiBold",
           fontSize: 11,
-          marginBottom: 6,
+          marginBottom: 0,
         },
         tabBarBackground: () => (
           <View style={{ backgroundColor: c.card, flex: 1 }} />

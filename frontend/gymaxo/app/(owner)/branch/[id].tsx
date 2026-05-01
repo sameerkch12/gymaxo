@@ -9,6 +9,7 @@ import { ScreenHeader } from "../add-customer";
 import { Card, Divider, EmptyState } from "@/components/ui";
 import { useData } from "@/contexts/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useTodayISO } from "@/hooks/useTodayISO";
 import { apiRequest } from "@/lib/api";
 
 export default function BranchDetail() {
@@ -20,7 +21,7 @@ export default function BranchDetail() {
   const [qrPayload, setQrPayload] = useState<string>("");
   const [qrError, setQrError] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = useTodayISO();
   const branchAttendance = useMemo(
     () =>
       attendance
