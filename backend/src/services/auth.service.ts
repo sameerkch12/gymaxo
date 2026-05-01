@@ -5,7 +5,7 @@ import { hashPassword, verifyPassword } from "../utils/password.js";
 import { signAccessToken } from "../utils/tokens.js";
 import { toPublicUser, UserModel } from "../models/user.model.js";
 import { OWNER_FREE_TRIAL_DAYS, type AccountRole, type Role } from "../constants/domain.js";
-import { sendOtpEmail } from "./email.service.js";
+import { sendOtpEmail } from "./otp.service.js";
 import { createOwnerSubscription } from "./subscription.service.js";
 import { linkCustomerMembershipToUser } from "./customer.service.js";
 import { normalizePhone, phoneSearchValues } from "../utils/phone.js";
@@ -61,8 +61,8 @@ export async function requestEmailOtp(input: { email: string; role: AccountRole 
     codeHash: await hashOtp(code),
     expiresAt: new Date(Date.now() + 10 * 60 * 1000),
   });
-  await sendOtpEmail(input.email, code);
-  return { sent: true };
+  const result = await sendOtpEmail(input.email, code);
+  return { sent: true, ...(result.devOtp && { devOtp: result.devOtp }) };
 }
 
 export async function verifyEmailOtp(input: {

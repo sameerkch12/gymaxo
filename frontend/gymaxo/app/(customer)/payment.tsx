@@ -165,7 +165,7 @@ export default function PaymentScreen() {
                           fontSize: 22,
                         }}
                       >
-                        ${p.price}
+                        ₹{p.price}
                       </Text>
                     </Pressable>
                   );
@@ -263,7 +263,7 @@ export default function PaymentScreen() {
 
               <View style={{ marginTop: 12 }}>
                 <Button
-                  title={`Submit ${selectedPlan ? `$${selectedPlan.price}` : ""} request`}
+                  title={`Submit ${selectedPlan ? `₹${selectedPlan.price}` : ""} request`}
                   onPress={handleSubmit}
                   loading={submitting}
                   disabled={!ownerPaymentUpiId.trim()}
@@ -317,7 +317,7 @@ export default function PaymentScreen() {
                               fontSize: 15,
                             }}
                           >
-                            {plan?.name ?? "Plan"} • ${p.amount}
+                            {plan?.name ?? "Plan"} • ₹{p.amount}
                           </Text>
                           {p.utrNumber ? (
                             <Text
