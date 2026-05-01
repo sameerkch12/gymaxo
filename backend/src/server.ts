@@ -3,7 +3,7 @@ import { Server as SocketServer } from "socket.io";
 import { env } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
-import { initEventService } from "./services/event.service.js";
+import { getEventService, initEventService } from "./services/event.service.js";
 
 async function main() {
   await connectDatabase();
@@ -15,7 +15,7 @@ async function main() {
 
   const io = new SocketServer(server, {
     cors: {
-      origin: env.CORS_ORIGINS?.split(",") || ["http://localhost:3000", "http://localhost:5173"],
+      origin: env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean),
       credentials: true,
     },
   });

@@ -12,7 +12,7 @@ notificationRoutes.get(
   asyncHandler(async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const notifications = await notificationService.getNotifications(
-      req.user!.id,
+      req.auth!.userId,
       Number(page),
       Number(limit)
     );
@@ -23,7 +23,7 @@ notificationRoutes.get(
 notificationRoutes.patch(
   "/:id/read",
   asyncHandler(async (req, res) => {
-    const success = await notificationService.markAsRead(req.params.id, req.user!.id);
+    const success = await notificationService.markAsRead(req.params.id, req.auth!.userId);
     if (!success) {
       return res.status(404).json({ message: "Notification not found" });
     }
@@ -34,7 +34,7 @@ notificationRoutes.patch(
 notificationRoutes.delete(
   "/:id",
   asyncHandler(async (req, res) => {
-    const success = await notificationService.deleteNotification(req.params.id, req.user!.id);
+    const success = await notificationService.deleteNotification(req.params.id, req.auth!.userId);
     if (!success) {
       return res.status(404).json({ message: "Notification not found" });
     }
