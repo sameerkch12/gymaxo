@@ -107,7 +107,7 @@ export default function PaymentsScreen() {
                           marginTop: 2,
                         }}
                       >
-                        {plan?.name} • ${p.amount}
+                        {plan?.name} • ₹{p.amount}
                       </Text>
                     </View>
                     <Badge

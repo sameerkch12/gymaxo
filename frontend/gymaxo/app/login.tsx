@@ -26,10 +26,12 @@ export default function LoginScreen() {
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   const resetOtp = () => {
     setOtpSent(false);
     setCode("");
+    setDevOtp(null);
     setError(null);
   };
 
@@ -64,8 +66,12 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await requestEmailOtp(email.trim().toLowerCase(), role);
-      if (!res.ok) setError(res.error ?? "OTP send failed");
-      else setOtpSent(true);
+      if (!res.ok) {
+        setError(res.error ?? "OTP send failed");
+      } else {
+        setDevOtp(res.devOtp ?? null);
+        setOtpSent(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -247,14 +253,46 @@ export default function LoginScreen() {
                 secureTextEntry
               />
               {otpSent ? (
-                <Input
-                  label="OTP"
-                  value={code}
-                  onChangeText={setCode}
-                  placeholder="6 digit code"
-                  keyboardType="number-pad"
-                  autoCapitalize="none"
-                />
+                <>
+                  <Input
+                    label="OTP"
+                    value={code}
+                    onChangeText={setCode}
+                    placeholder="6 digit code"
+                    keyboardType="number-pad"
+                    autoCapitalize="none"
+                  />
+                  {devOtp ? (
+                    <View
+                      style={{
+                        backgroundColor: c.secondary,
+                        padding: 12,
+                        borderRadius: 14,
+                        marginTop: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: c.foreground,
+                          fontFamily: "Inter_500Medium",
+                          fontSize: 13,
+                        }}
+                      >
+                        Dev OTP: {devOtp}
+                      </Text>
+                      <Text
+                        style={{
+                          color: c.mutedForeground,
+                          fontFamily: "Inter_400Regular",
+                          fontSize: 12,
+                          marginTop: 4,
+                        }}
+                      >
+                        This is visible only in development mode.
+                      </Text>
+                    </View>
+                  ) : null}
+                </>
               ) : null}
             </>
           )}

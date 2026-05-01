@@ -11,6 +11,7 @@ const booleanFromEnv = z.preprocess((value) => {
 }, z.boolean());
 
 const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "production", "staging"]).default("development"),
   MONGODB_URI: z.string().default("mongodb://127.0.0.1:27017/gymaxo"),
   JWT_SECRET: z.string().min(24),
   JWT_EXPIRES_IN: z.string().default("7d"),
@@ -23,6 +24,9 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
   PORT: z.coerce.number().int().positive().default(4000),
   CORS_ORIGIN: z.string().default("http://localhost:8081,http://localhost:19006"),
 });

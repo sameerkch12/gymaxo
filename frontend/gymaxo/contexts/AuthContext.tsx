@@ -34,7 +34,7 @@ interface AuthContextValue {
   requestEmailOtp: (
     email: string,
     role: Role,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<{ ok: boolean; error?: string; devOtp?: string }>;
   verifyEmailOtp: (input: {
     email: string;
     code: string;
@@ -140,11 +140,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const requestEmailOtp = useCallback(async (email: string, role: Role) => {
     try {
-      await apiRequest<{ sent: boolean }>("/auth/email-otp/request", {
-        method: "POST",
-        body: JSON.stringify({ email, role }),
-      });
-      return { ok: true as const };
+      const data = await apiRequest<{ sent: boolean; devOtp?: string }>(
+        "/auth/email-otp/request",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, role }),
+        },
+      );
+      return { ok: true as const, devOtp: data.devOtp };
     } catch (error) {
       return {
         ok: false as const,

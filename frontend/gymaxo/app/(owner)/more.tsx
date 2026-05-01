@@ -472,7 +472,7 @@ export default function MoreScreen() {
                           marginTop: 2,
                         }}
                       >
-                        ${s.plan.price} • {s.plan.durationDays}d
+                        ₹{s.plan.price} • {s.plan.durationDays}d
                       </Text>
                     </View>
                     <Badge label={`${s.count} active`} variant="primary" />
@@ -546,6 +546,16 @@ export default function MoreScreen() {
                   autoCapitalize="none"
                   placeholder="yourname@upi"
                 />
+                <Text
+                  style={{
+                    color: c.mutedForeground,
+                    fontFamily: "Inter_500Medium",
+                    fontSize: 12,
+                    marginBottom: 4,
+                  }}
+                >
+                  Customers pay membership using this UPI in their app.
+                </Text>
                 {upiMessage ? (
                   <Text
                     style={{
@@ -619,7 +629,7 @@ export default function MoreScreen() {
                       fontSize: 18,
                     }}
                   >
-                    ${p.price}
+                    ₹{p.price}
                   </Text>
                 </View>
                 <View style={{ marginTop: 12 }}>
@@ -655,7 +665,7 @@ export default function MoreScreen() {
                   placeholder="e.g. Student monthly"
                 />
                 <Input
-                  label="Price ($)"
+                  label="Price (₹)"
                   value={planPrice}
                   onChangeText={setPlanPrice}
                   keyboardType="numeric"
@@ -745,7 +755,7 @@ export default function MoreScreen() {
 
             <Button
               title="Sign out"
-              variant="ghost"
+              variant="destructive"
               icon="log-out"
               onPress={async () => {
                 await logout();
