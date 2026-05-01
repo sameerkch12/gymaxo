@@ -10,6 +10,8 @@ import { io, Socket } from "socket.io-client";
 
 import {
   apiRequest,
+  getSocketUrl,
+  getToken,
   normalizeDate,
   normalizeDateTime,
   normalizeId,
@@ -251,8 +253,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  // Socket.IO connection
   useEffect(() => {
+    let cancelled = false;
+    let activeSocket: Socket | null = null;
+
     if (!user) {
       if (socket) {
         socket.disconnect();
@@ -261,80 +265,138 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const newSocket = io(process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000", {
-      transports: ["websocket"],
-    });
+    void getToken().then((token) => {
+      if (cancelled || !token) return;
 
-    newSocket.on("connect", () => {
-      console.log("Connected to server");
-      newSocket.emit("join", { userId: user.id, role: user.role });
-    });
-
-    // Listen for real-time updates
-    if (user.role === "owner") {
-      newSocket.on("payment:submitted", (data) => {
-        console.log("Payment submitted:", data);
-        setPayments((current) => [normalizePayment(data.payment), ...current]);
+      const newSocket = io(getSocketUrl(), {
+        auth: { token },
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        transports: ["websocket"],
       });
 
-      newSocket.on("customer:added", (data) => {
-        console.log("Customer added:", data);
-        setCustomers((current) => [normalizeCustomer(data.customer), ...current]);
+      activeSocket = newSocket;
+
+      newSocket.on("connect", () => {
+        console.log("Connected to server");
       });
 
-      newSocket.on("plan:created", (data) => {
-        console.log("Plan created:", data);
-        setPlans((current) => [normalizePlan(data.plan), ...current]);
-      });
-
-      newSocket.on("plan:deleted", (data) => {
-        console.log("Plan deleted:", data);
-        setPlans((current) => current.filter((p) => p.id !== data.planId));
-      });
-
-      newSocket.on("payment-settings:updated", (data) => {
-        console.log("Payment settings updated:", data);
-        setOwnerPaymentUpiId(data.upiId);
-      });
-
-      newSocket.on("subscription:renewed", (data) => {
-        console.log("Subscription renewed:", data);
-        // Could update subscription status if stored
-      });
-
-      newSocket.on("subscription:status_changed", (data) => {
-        console.log("Subscription status changed:", data);
-        // Could update subscription status
-      });
-    } else if (user.role === "customer") {
-      newSocket.on("payment:status_changed", (data) => {
-        console.log("Payment status changed:", data);
-        setCustomers((current) =>
-          current.map((c) =>
-            c.id === data.customer.id ? normalizeCustomer(data.customer) : c
-          )
-        );
-      });
-
-      newSocket.on("plan:updated", (data) => {
-        console.log("Plan updated:", data);
-        if (data.action === "created") {
-          setPlans((current) => [normalizePlan(data.plan), ...current]);
-        } else if (data.action === "deleted") {
-          setPlans((current) => current.filter((p) => p.id !== data.planId));
-        }
+      newSocket.on("connect_error", (error) => {
+        console.log("Socket connection error:", error.message);
       });
 
       newSocket.on("notification:created", (data) => {
         console.log("Notification received:", data);
-        // Could show toast or update notifications list
       });
-    }
 
-    setSocket(newSocket);
+      if (user.role === "owner") {
+        newSocket.on("payment:submitted", (data) => {
+          console.log("Payment submitted:", data);
+          if (data.payment) {
+            setPayments((current) => [normalizePayment(data.payment), ...current]);
+          }
+        });
+
+        newSocket.on("payment:updated", (data) => {
+          console.log("Payment updated:", data);
+          if (data.payment) {
+            const payment = normalizePayment(data.payment);
+            setPayments((current) =>
+              current.map((item) => (item.id === payment.id ? payment : item)),
+            );
+          }
+        });
+
+        newSocket.on("attendance:marked", (data) => {
+          console.log("Attendance marked:", data);
+          if (data.attendance) {
+            const entry = normalizeAttendance(data.attendance);
+            setAttendance((current) =>
+              current.some((item) => item.id === entry.id) ? current : [entry, ...current],
+            );
+          }
+        });
+
+        newSocket.on("customer:added", (data) => {
+          console.log("Customer added:", data);
+          if (data.customer) {
+            const customer = normalizeCustomer(data.customer);
+            setCustomers((current) =>
+              current.some((item) => item.id === customer.id) ? current : [customer, ...current],
+            );
+          }
+        });
+
+        newSocket.on("plan:created", (data) => {
+          console.log("Plan created:", data);
+          if (data.plan) {
+            const plan = normalizePlan(data.plan);
+            setPlans((current) =>
+              current.some((item) => item.id === plan.id) ? current : [plan, ...current],
+            );
+          }
+        });
+
+        newSocket.on("plan:deleted", (data) => {
+          console.log("Plan deleted:", data);
+          setPlans((current) => current.filter((p) => p.id !== data.planId));
+        });
+
+        newSocket.on("payment-settings:updated", (data) => {
+          console.log("Payment settings updated:", data);
+          setOwnerPaymentUpiId(String(data.upiId ?? ""));
+        });
+
+        newSocket.on("subscription:renewed", (data) => {
+          console.log("Subscription renewed:", data);
+        });
+
+        newSocket.on("subscription:status_changed", (data) => {
+          console.log("Subscription status changed:", data);
+        });
+      } else if (user.role === "customer") {
+        newSocket.on("payment:status_changed", (data) => {
+          console.log("Payment status changed:", data);
+          if (data.customer) {
+            const customer = normalizeCustomer(data.customer);
+            setCustomers((current) =>
+              current.map((item) => (item.id === customer.id ? customer : item)),
+            );
+          }
+          if (data.payment) {
+            const payment = normalizePayment(data.payment);
+            setPayments((current) =>
+              current.map((item) => (item.id === payment.id ? payment : item)),
+            );
+          }
+        });
+
+        newSocket.on("payment-settings:updated", (data) => {
+          console.log("Payment settings updated:", data);
+          setOwnerPaymentUpiId(String(data.upiId ?? ""));
+        });
+
+        newSocket.on("plan:updated", (data) => {
+          console.log("Plan updated:", data);
+          if (data.action === "created" && data.plan) {
+            const plan = normalizePlan(data.plan);
+            setPlans((current) =>
+              current.some((item) => item.id === plan.id) ? current : [plan, ...current],
+            );
+          } else if (data.action === "deleted") {
+            setPlans((current) => current.filter((p) => p.id !== data.planId));
+          }
+        });
+      }
+
+      setSocket(newSocket);
+    });
 
     return () => {
-      newSocket.disconnect();
+      cancelled = true;
+      activeSocket?.disconnect();
     };
   }, [user]);
 

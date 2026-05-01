@@ -1,4 +1,5 @@
 import { AppError, notFound } from "../errors/AppError.js";
+import { env } from "../config/env.js";
 import type { PaymentStatus } from "../constants/domain.js";
 import { MembershipPlanModel } from "../models/membership-plan.model.js";
 import { PaymentRequestModel } from "../models/payment-request.model.js";
@@ -35,20 +36,19 @@ export async function submitPayment(
     status: "pending",
   });
 
-  // Emit to owner
   const eventService = getEventService();
   eventService.emitToOwner(String(customer.ownerId), "payment:submitted", {
+    payment,
     paymentId: payment._id,
-    customer: customer,
-    plan: plan,
+    customer,
+    plan,
     amount: input.amount,
   });
 
-  // Notify owner
   await notificationService.createNotification(
     String(customer.ownerId),
     "New Payment Submitted",
-    `${customer.name} submitted a payment of ₹${input.amount} for ${plan.name}.`
+    `${customer.name} submitted a payment of Rs. ${input.amount} for ${plan.name}.`,
   );
 
   return payment;
@@ -77,45 +77,50 @@ export async function reviewPayment(ownerId: string, paymentId: string, status: 
     const plan = await MembershipPlanModel.findById(payment.planId);
     if (!plan) throw notFound("Plan not found");
 
-    const today = startOfToday();
+    const today = startOfToday(env.APP_TIME_ZONE);
     const base = customer.endDate > today ? customer.endDate : today;
     customer.planId = plan._id;
     customer.endDate = addDays(base, plan.durationDays);
     customer.active = true;
     await customer.save();
 
-    // Emit to customer
-    eventService.emitToCustomer(String(customer._id), "payment:status_changed", {
+    const payload = {
       paymentId: payment._id,
       status,
-      customer: customer,
-    });
+      customer,
+      payment,
+    };
 
-    // Notify customer
-    await notificationService.createNotification(
-      String(customer.userId),
-      "Payment Approved",
-      `Your payment for ${plan.name} has been approved. Membership extended until ${customer.endDate.toDateString()}.`
-    );
+    eventService.emitToCustomer(String(customer._id), "payment:status_changed", payload);
+    if (customer.userId) {
+      await notificationService.createNotification(
+        String(customer.userId),
+        "Payment Approved",
+        `Your payment for ${plan.name} has been approved. Membership extended until ${customer.endDate.toDateString()}.`,
+      );
+    }
   } else if (status === "rejected") {
     const customer = await assertOwnerOwnsCustomer(ownerId, String(payment.customerId));
 
-    // Emit to customer
-    eventService.emitToCustomer(String(customer._id), "payment:status_changed", {
+    const payload = {
       paymentId: payment._id,
       status,
-    });
+      customer,
+      payment,
+    };
 
-    // Notify customer
-    await notificationService.createNotification(
-      String(customer.userId),
-      "Payment Rejected",
-      "Your payment submission has been rejected. Please check and resubmit."
-    );
+    eventService.emitToCustomer(String(customer._id), "payment:status_changed", payload);
+    if (customer.userId) {
+      await notificationService.createNotification(
+        String(customer.userId),
+        "Payment Rejected",
+        "Your payment submission has been rejected. Please check and resubmit.",
+      );
+    }
   }
 
-  // Emit to owner for real-time update
   eventService.emitToOwner(ownerId, "payment:updated", {
+    payment,
     paymentId: payment._id,
     status,
   });

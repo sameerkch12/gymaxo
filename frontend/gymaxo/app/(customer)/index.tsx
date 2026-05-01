@@ -10,6 +10,7 @@ import { Badge, Card, DataSkeleton, EmptyState, Header } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useColors } from "@/hooks/useColors";
+import { useTodayISO } from "@/hooks/useTodayISO";
 import { computeBanner } from "@/lib/reminders";
 
 export default function CustomerHome() {
@@ -41,7 +42,7 @@ export default function CustomerHome() {
     [attendance, customer],
   );
 
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = useTodayISO();
   const checkedInToday = myAttendance.some((a) => a.date === today);
   const banner = computeBanner({ user, myCustomer: customer ?? null });
 

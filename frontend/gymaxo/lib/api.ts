@@ -1,6 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000/api";
+const SOCKET_URL =
+  process.env.EXPO_PUBLIC_SOCKET_URL ??
+  API_URL.replace(/\/api\/?$/, "");
 const TOKEN_KEY = "gymaxo:authToken";
 
 interface ApiResponse<T> {
@@ -19,6 +22,10 @@ export async function setToken(token: string): Promise<void> {
 
 export async function clearToken(): Promise<void> {
   await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+export function getSocketUrl(): string {
+  return SOCKET_URL;
 }
 
 export async function apiRequest<T>(
