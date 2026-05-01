@@ -8,6 +8,8 @@ import { GymModel } from "../models/gym.model.js";
 import { MembershipPlanModel } from "../models/membership-plan.model.js";
 import { UserModel } from "../models/user.model.js";
 import { addDays } from "../utils/dates.js";
+import { getEventService } from "./event.service.js";
+import { notificationService } from "./notification.service.js";
 import { normalizePhone } from "../utils/phone.js";
 
 function toPublicBranch(branch: { toObject(): Record<string, unknown> } | Record<string, unknown>) {
@@ -73,13 +75,32 @@ export async function getBranchQrPayload(ownerId: string, branchId: string) {
 }
 
 export async function createPlan(ownerId: string, input: { name: string; type: PlanType; price: number }) {
-  return MembershipPlanModel.create({
+  const plan = await MembershipPlanModel.create({
     ownerId,
     name: input.name,
     type: input.type,
     price: input.price,
     durationDays: PLAN_DAYS[input.type],
   });
+
+  // Emit to owner
+  const eventService = getEventService();
+  eventService.emitToOwner(ownerId, "plan:created", {
+    plan,
+  });
+
+  // Get all customers of this owner and emit to them
+  const customers = await CustomerModel.find({ ownerId }).populate("userId");
+  for (const customer of customers) {
+    if (customer.userId) {
+      eventService.emitToCustomer(String(customer._id), "plan:updated", {
+        plan,
+        action: "created",
+      });
+    }
+  }
+
+  return plan;
 }
 
 export async function deletePlan(ownerId: string, planId: string) {
@@ -87,6 +108,24 @@ export async function deletePlan(ownerId: string, planId: string) {
   if (!plan) throw notFound("Plan not found");
 
   await plan.deleteOne();
+
+  // Emit to owner
+  const eventService = getEventService();
+  eventService.emitToOwner(ownerId, "plan:deleted", {
+    planId,
+  });
+
+  // Get all customers of this owner and emit to them
+  const customers = await CustomerModel.find({ ownerId }).populate("userId");
+  for (const customer of customers) {
+    if (customer.userId) {
+      eventService.emitToCustomer(String(customer._id), "plan:updated", {
+        planId,
+        action: "deleted",
+      });
+    }
+  }
+
   return { id: planId };
 }
 
@@ -97,6 +136,13 @@ export async function updatePaymentSettings(ownerId: string, input: { upiId: str
     { new: true },
   );
   if (!owner) throw notFound("Owner not found");
+
+  // Emit to owner
+  const eventService = getEventService();
+  eventService.emitToOwner(ownerId, "payment-settings:updated", {
+    upiId: owner.paymentUpiId,
+  });
+
   return { upiId: owner.paymentUpiId ?? "" };
 }
 
@@ -128,7 +174,7 @@ export async function createCustomer(
   if (!branch) throw notFound("Branch not found");
   if (!plan) throw notFound("Plan not found");
 
-  return CustomerModel.create({
+  const customer = await CustomerModel.create({
     ownerId,
     gymId: input.gymId,
     branchId: input.branchId,
@@ -140,6 +186,15 @@ export async function createCustomer(
     endDate: addDays(input.startDate, plan.durationDays),
     active: true,
   });
+
+  // Emit to owner for real-time dashboard update
+  const eventService = getEventService();
+  eventService.emitToOwner(ownerId, "customer:added", {
+    customerId: customer._id,
+    customer: customer,
+  });
+
+  return customer;
 }
 
 export async function assertOwnerOwnsCustomer(ownerId: string, customerId: string) {

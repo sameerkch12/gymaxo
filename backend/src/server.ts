@@ -1,7 +1,9 @@
 import https from "https";
+import { Server as SocketServer } from "socket.io";
 import { env } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/database.js";
 import { createApp } from "./app.js";
+import { getEventService, initEventService } from "./services/event.service.js";
 
 async function main() {
   await connectDatabase();
@@ -10,6 +12,34 @@ async function main() {
   const server = app.listen(env.PORT, () => {
     console.log(`Gymaxo API running on http://localhost:${env.PORT}/api`);
   });
+
+  const io = new SocketServer(server, {
+    cors: {
+      origin: env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean),
+      credentials: true,
+    },
+  });
+
+  // Initialize event service
+  initEventService(io);
+
+  // Socket.IO connection handling
+  io.on("connection", (socket) => {
+    console.log(`User connected: ${socket.id}`);
+
+    socket.on("join", (data: { userId: string; role: string }) => {
+      const eventService = getEventService();
+      eventService.joinUser(socket, data.userId, data.role);
+      console.log(`User ${data.userId} joined as ${data.role}`);
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`User disconnected: ${socket.id}`);
+    });
+  });
+
+  // Make io available globally for services
+  (global as any).io = io;
 
   setInterval(() => {
     https.get("https://gymaxo.onrender.com/api/health", (res) => {

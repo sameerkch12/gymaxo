@@ -5,6 +5,8 @@ import { PaymentRequestModel } from "../models/payment-request.model.js";
 import { addDays, startOfToday } from "../utils/dates.js";
 import { assertCustomerAccessibleByUser } from "./customer.service.js";
 import { assertOwnerOwnsCustomer } from "./gym.service.js";
+import { getEventService } from "./event.service.js";
+import { notificationService } from "./notification.service.js";
 
 export async function submitPayment(
   userId: string,
@@ -22,7 +24,7 @@ export async function submitPayment(
   const plan = await MembershipPlanModel.findOne({ _id: input.planId, ownerId: customer.ownerId });
   if (!plan) throw notFound("Plan not found");
 
-  return PaymentRequestModel.create({
+  const payment = await PaymentRequestModel.create({
     customerId: customer._id,
     ownerId: customer.ownerId,
     planId: plan._id,
@@ -32,6 +34,24 @@ export async function submitPayment(
     note: input.note,
     status: "pending",
   });
+
+  // Emit to owner
+  const eventService = getEventService();
+  eventService.emitToOwner(String(customer.ownerId), "payment:submitted", {
+    paymentId: payment._id,
+    customer: customer,
+    plan: plan,
+    amount: input.amount,
+  });
+
+  // Notify owner
+  await notificationService.createNotification(
+    String(customer.ownerId),
+    "New Payment Submitted",
+    `${customer.name} submitted a payment of ₹${input.amount} for ${plan.name}.`
+  );
+
+  return payment;
 }
 
 export async function listOwnerPayments(ownerId: string, status?: PaymentStatus) {
@@ -50,6 +70,8 @@ export async function reviewPayment(ownerId: string, paymentId: string, status: 
   payment.reviewedAt = new Date();
   await payment.save();
 
+  const eventService = getEventService();
+
   if (status === "approved") {
     const customer = await assertOwnerOwnsCustomer(ownerId, String(payment.customerId));
     const plan = await MembershipPlanModel.findById(payment.planId);
@@ -61,7 +83,42 @@ export async function reviewPayment(ownerId: string, paymentId: string, status: 
     customer.endDate = addDays(base, plan.durationDays);
     customer.active = true;
     await customer.save();
+
+    // Emit to customer
+    eventService.emitToCustomer(String(customer._id), "payment:status_changed", {
+      paymentId: payment._id,
+      status,
+      customer: customer,
+    });
+
+    // Notify customer
+    await notificationService.createNotification(
+      String(customer.userId),
+      "Payment Approved",
+      `Your payment for ${plan.name} has been approved. Membership extended until ${customer.endDate.toDateString()}.`
+    );
+  } else if (status === "rejected") {
+    const customer = await assertOwnerOwnsCustomer(ownerId, String(payment.customerId));
+
+    // Emit to customer
+    eventService.emitToCustomer(String(customer._id), "payment:status_changed", {
+      paymentId: payment._id,
+      status,
+    });
+
+    // Notify customer
+    await notificationService.createNotification(
+      String(customer.userId),
+      "Payment Rejected",
+      "Your payment submission has been rejected. Please check and resubmit."
+    );
   }
+
+  // Emit to owner for real-time update
+  eventService.emitToOwner(ownerId, "payment:updated", {
+    paymentId: payment._id,
+    status,
+  });
 
   return payment;
 }
